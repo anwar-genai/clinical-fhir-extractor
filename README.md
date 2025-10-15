@@ -106,6 +106,18 @@ Alternatively, create a `.env` file in the project root:
 OPENAI_API_KEY=your-api-key-here
 ```
 
+Note on .env loading:
+- The app itself does not auto-load `.env`. Either export the variable in your shell or run using a launcher that reads `.env`.
+- If you use `uv`, you can pass an env file directly:
+
+```bash
+# Use .env automatically when running with uv
+uv run --env-file .env python main.py
+
+# Or with uvicorn
+uv run --env-file .env uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
 ## 🏃 Running the Application
 
 ### Development Server

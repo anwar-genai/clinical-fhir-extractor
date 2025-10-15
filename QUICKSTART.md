@@ -40,9 +40,18 @@ $env:OPENAI_API_KEY="sk-..."
 export OPENAI_API_KEY="sk-..."
 ```
 
-Or create a `.env` file:
+Or create a `.env` file at the project root (same folder as `pyproject.toml`):
 ```
 OPENAI_API_KEY=sk-your-key-here
+```
+
+Note: The app does not auto-load `.env`. Either export the variable in your shell, or if you use `uv`, pass the env file when running:
+
+```bash
+uv run --env-file .env python main.py
+
+# Or with uvicorn directly
+uv run --env-file .env uvicorn app.main:app --reload
 ```
 
 ## 4. Run
