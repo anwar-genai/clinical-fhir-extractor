@@ -1,0 +1,74 @@
+Clinical Progress Note
+
+Patient Information:
+Name: Sarah Johnson (Example Patient - Non-PHI)
+Date of Birth: 1978-09-22
+Gender: Female
+Contact: example@email.com
+
+Date of Visit: 2024-01-15
+
+Chief Complaint: 
+Annual physical examination and medication review
+
+History of Present Illness:
+Patient presents for routine annual physical. Reports feeling well overall. 
+Continues to manage chronic conditions with current medication regimen. 
+No new complaints or concerns.
+
+Vital Signs:
+- Blood Pressure: 128/82 mmHg
+- Heart Rate: 72 beats per minute
+- Respiratory Rate: 16 breaths per minute
+- Temperature: 98.6°F (37.0°C)
+- Weight: 68 kg (150 lbs)
+- Height: 165 cm (5'5")
+- BMI: 25.0
+
+Physical Examination:
+General: Alert, oriented, well-nourished, no acute distress
+HEENT: Normal examination
+Cardiovascular: Regular rate and rhythm, no murmurs
+Respiratory: Clear to auscultation bilaterally
+Abdomen: Soft, non-tender, non-distended
+
+Laboratory Results (from last visit):
+- Hemoglobin A1C: 6.8%
+- Total Cholesterol: 195 mg/dL
+- LDL: 110 mg/dL
+- HDL: 55 mg/dL
+- Triglycerides: 150 mg/dL
+- Fasting Glucose: 105 mg/dL
+
+Assessment and Diagnoses:
+1. Type 2 Diabetes Mellitus - well controlled
+2. Essential Hypertension - adequately managed
+3. Hyperlipidemia - stable on current therapy
+4. Overweight (BMI 25.0)
+
+Current Medications:
+1. Metformin 1000mg - take twice daily with meals
+2. Lisinopril 10mg - take once daily in the morning
+3. Atorvastatin 20mg - take once daily at bedtime
+4. Aspirin 81mg - take once daily for cardiovascular protection
+
+Plan:
+1. Continue current medications as prescribed
+2. Recheck A1C and lipid panel in 3 months
+3. Continue low-carbohydrate diet and exercise program
+4. Target weight loss of 5-10 pounds
+5. Follow-up appointment in 6 months or sooner if concerns arise
+6. Patient educated on signs of hypoglycemia
+7. Annual eye examination scheduled
+8. Foot examination performed - no abnormalities noted
+
+Patient Education:
+- Importance of medication compliance discussed
+- Diet and exercise recommendations reviewed
+- Blood sugar monitoring technique reviewed
+- Emergency contact information provided
+
+Next Appointment: July 2024
+
+Provider: Dr. Example Provider, MD
+
