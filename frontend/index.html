@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clinical FHIR Extractor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Clinical FHIR Extractor</h1>
+
+    <form id="uploadForm">
+      <input type="file" id="fileInput" accept=".pdf,.txt" required />
+      <button type="submit">Extract FHIR</button>
+    </form>
+
+    <div id="status" class="status">Idle</div>
+    <pre id="output" class="output"></pre>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
