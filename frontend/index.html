@@ -7,17 +7,56 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>Clinical FHIR Extractor</h1>
+  <header class="site-header">
+    <div class="shell">
+      <div class="brand">Clinical FHIR Extractor</div>
+      <div class="controls">
+        <label class="api-label" for="apiUrl">API URL</label>
+        <input id="apiUrl" type="text" placeholder="http://127.0.0.1:8000" />
+        <button id="saveApi" class="secondary">Save</button>
+      </div>
+    </div>
+  </header>
 
-    <form id="uploadForm">
-      <input type="file" id="fileInput" accept=".pdf,.txt" required />
-      <button type="submit">Extract FHIR</button>
-    </form>
+  <main class="shell">
+    <section class="card">
+      <h1>Extract FHIR from a Clinical Document</h1>
+      <p class="muted">Upload a PDF or TXT clinical note. The backend will chunk, embed, retrieve, and extract FHIR-compliant JSON.</p>
 
-    <div id="status" class="status">Idle</div>
-    <pre id="output" class="output"></pre>
-  </div>
+      <div id="dropZone" class="dropzone">
+        <input type="file" id="fileInput" accept=".pdf,.txt" hidden />
+        <div class="dropzone-inner">
+          <div class="drop-icon">📄</div>
+          <div>
+            <div class="dz-title">Drag & drop a file here</div>
+            <div class="dz-sub">or <button id="browseBtn" class="linklike" type="button">browse</button> to choose a PDF/TXT</div>
+          </div>
+        </div>
+      </div>
+
+      <form id="uploadForm" class="actions">
+        <div id="fileName" class="file-name">No file selected</div>
+        <div class="spacer"></div>
+        <button id="extractBtn" type="submit">Extract FHIR</button>
+      </form>
+
+      <div id="status" class="status">Idle</div>
+
+      <div class="output-toolbar">
+        <div class="muted">Output</div>
+        <div class="spacer"></div>
+        <button id="copyBtn" class="secondary" type="button">Copy JSON</button>
+        <button id="downloadBtn" class="secondary" type="button">Download</button>
+      </div>
+      <pre id="output" class="output" aria-live="polite"></pre>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell">
+      <span class="muted">PoC • FastAPI • LangChain • FAISS • OpenAI</span>
+    </div>
+  </footer>
 
   <script src="app.js"></script>
 </body>
