@@ -1,6 +1,29 @@
 # Clinical FHIR Extractor
 
-A proof-of-concept backend service that extracts structured medical data from PDF or text clinical documents and outputs FHIR R4-compliant JSON using LangChain, FAISS, and OpenAI.
+A secure backend service that extracts structured medical data from PDF or text clinical documents and outputs FHIR R4-compliant JSON using LangChain, FAISS, and OpenAI.
+
+**Version 0.2.0** - Now with authentication, authorization, and audit logging!
+
+## ✨ What's New in v0.2.0
+
+🔐 **Authentication & Authorization**
+- JWT-based authentication
+- API key support for programmatic access
+- Role-based access control (RBAC)
+- Comprehensive audit logging
+
+🛡️ **Security Features**
+- Rate limiting (10 requests/minute)
+- Password hashing with bcrypt
+- Token refresh mechanism
+- IP address tracking
+
+📊 **Monitoring & Compliance**
+- Audit logs for all operations
+- User activity tracking
+- Admin dashboard endpoints
+
+📖 **[Full Authentication Documentation →](AUTHENTICATION.md)**
 
 ## 🏗️ Architecture
 
@@ -10,6 +33,8 @@ This application uses:
 - **FAISS** for vector storage and semantic search
 - **OpenAI GPT-4** for intelligent medical data extraction
 - **PyPDF** for PDF document parsing
+- **SQLAlchemy** for database management
+- **JWT** for secure authentication
 
 ### Workflow
 
@@ -90,24 +115,48 @@ pip install -e ".[dev]"
 
 ### Configuration
 
-Set your OpenAI API key as an environment variable:
+Create a `.env` file in the project root (copy from `.env.example`):
 
 ```bash
-# Windows (PowerShell)
-$env:OPENAI_API_KEY="your-api-key-here"
-
-# macOS/Linux
-export OPENAI_API_KEY="your-api-key-here"
+# Copy example configuration
+cp .env.example .env
 ```
 
-Alternatively, create a `.env` file in the project root:
+**Required Environment Variables:**
 
 ```env
-OPENAI_API_KEY=your-api-key-here
+# OpenAI Configuration
+OPENAI_API_KEY=your-openai-api-key-here
+
+# JWT Secret (IMPORTANT: Change in production!)
+JWT_SECRET_KEY=CHANGE_ME_IN_PRODUCTION_USE_LONG_RANDOM_STRING
+```
+
+**Generate a secure JWT secret:**
+
+```bash
+# Linux/macOS
+openssl rand -hex 32
+
+# Python
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+**Optional Configuration:**
+
+```env
+# Database (SQLite by default, use PostgreSQL for production)
+DATABASE_URL=sqlite:///./clinical_fhir.db
+
+# Token expiration
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Rate limiting
+RATE_LIMIT_PER_MINUTE=10
 ```
 
 Note on .env loading:
-- The app itself does not auto-load `.env`. Either export the variable in your shell or run using a launcher that reads `.env`.
 - If you use `uv`, you can pass an env file directly:
 
 ```bash
@@ -146,19 +195,65 @@ Once the server is running, visit:
 
 ## 📡 API Endpoints
 
-### POST /extract-fhir
+### 🔓 Public Endpoints
+
+#### POST /auth/register
+Register a new user account.
+
+```bash
+curl -X POST "http://localhost:8000/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "username": "myusername",
+    "password": "securepassword123",
+    "full_name": "John Doe"
+  }'
+```
+
+#### POST /auth/login
+Login and receive JWT tokens.
+
+```bash
+curl -X POST "http://localhost:8000/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "myusername",
+    "password": "securepassword123"
+  }'
+```
+
+Response:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+### 🔐 Protected Endpoints (Authentication Required)
+
+All protected endpoints require an `Authorization: Bearer <token>` header.
+
+#### POST /extract-fhir
 
 Extract FHIR-compliant medical data from a clinical document.
 
 **Request:**
 - Method: `POST`
 - Content-Type: `multipart/form-data`
+- Authorization: `Bearer <access_token>` or `Bearer <api_key>`
 - Body: File upload (PDF or TXT)
 
 **Example using curl:**
 
 ```bash
+# First, get your token from /auth/login
+TOKEN="your-access-token-here"
+
 curl -X POST "http://localhost:8000/extract-fhir" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "accept: application/json" \
   -H "Content-Type: multipart/form-data" \
   -F "file=@clinical_note.txt"
@@ -169,12 +264,54 @@ curl -X POST "http://localhost:8000/extract-fhir" \
 ```python
 import requests
 
+# Login first
+login_response = requests.post(
+    "http://localhost:8000/auth/login",
+    json={"username": "myusername", "password": "mypassword"}
+)
+token = login_response.json()["access_token"]
+
+# Extract FHIR data
 url = "http://localhost:8000/extract-fhir"
+headers = {"Authorization": f"Bearer {token}"}
 files = {"file": open("clinical_note.txt", "rb")}
-response = requests.post(url, files=files)
+response = requests.post(url, headers=headers, files=files)
 fhir_data = response.json()
 print(fhir_data)
 ```
+
+#### GET /auth/me
+Get current user information.
+
+```bash
+curl -X GET "http://localhost:8000/auth/me" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### POST /auth/api-keys
+Create an API key for programmatic access.
+
+```bash
+curl -X POST "http://localhost:8000/auth/api-keys" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Automation Script",
+    "expires_in_days": 90
+  }'
+```
+
+### 👑 Admin Endpoints
+
+#### GET /auth/users
+List all users (admin only).
+
+#### GET /auth/audit-logs
+View audit logs (admin only).
+
+**For complete API documentation, see:**
+- **Interactive docs**: http://localhost:8000/docs
+- **Authentication guide**: [AUTHENTICATION.md](AUTHENTICATION.md)
 
 **Response:**
 

@@ -3,10 +3,65 @@
 import pytest
 from fastapi.testclient import TestClient
 from io import BytesIO
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.main import app
+from app.database import Base, get_db
+from app.models import User, UserRole
+from app.auth import get_password_hash
+
+# Create test database
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test_api.db"
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def override_get_db():
+    """Override database dependency for testing"""
+    try:
+        db = TestingSessionLocal()
+        yield db
+    finally:
+        db.close()
+
+
+app.dependency_overrides[get_db] = override_get_db
 
 client = TestClient(app)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def setup_db():
+    """Create test database tables before each test"""
+    Base.metadata.create_all(bind=engine)
+    
+    # Create a test user for authenticated endpoints
+    db = TestingSessionLocal()
+    user = User(
+        email="apitest@example.com",
+        username="apitest",
+        hashed_password=get_password_hash("testpass123"),
+        role=UserRole.USER,
+        is_active=True
+    )
+    db.add(user)
+    db.commit()
+    db.close()
+    
+    yield
+    
+    Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture
+def auth_token():
+    """Get authentication token for testing"""
+    response = client.post("/auth/login", json={
+        "username": "apitest",
+        "password": "testpass123"
+    })
+    return response.json()["access_token"]
 
 
 def test_root_endpoint():
@@ -27,24 +82,42 @@ def test_health_check():
     assert data["status"] == "healthy"
 
 
-def test_extract_fhir_no_file():
+def test_extract_fhir_no_auth():
+    """Test extract-fhir endpoint without authentication"""
+    files = {"file": ("test.txt", BytesIO(b"test content"), "text/plain")}
+    response = client.post("/extract-fhir", files=files)
+    assert response.status_code == 403  # Forbidden (no auth)
+
+
+def test_extract_fhir_no_file(auth_token):
     """Test extract-fhir endpoint without file upload"""
-    response = client.post("/extract-fhir")
+    response = client.post(
+        "/extract-fhir",
+        headers={"Authorization": f"Bearer {auth_token}"}
+    )
     assert response.status_code == 422  # Unprocessable Entity (missing file)
 
 
-def test_extract_fhir_invalid_extension():
+def test_extract_fhir_invalid_extension(auth_token):
     """Test extract-fhir endpoint with invalid file extension"""
     files = {"file": ("test.docx", BytesIO(b"test content"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
-    response = client.post("/extract-fhir", files=files)
+    response = client.post(
+        "/extract-fhir",
+        files=files,
+        headers={"Authorization": f"Bearer {auth_token}"}
+    )
     assert response.status_code == 400
     assert "Unsupported file type" in response.json()["detail"]
 
 
-def test_extract_fhir_empty_file():
+def test_extract_fhir_empty_file(auth_token):
     """Test extract-fhir endpoint with empty file"""
     files = {"file": ("empty.txt", BytesIO(b""), "text/plain")}
-    response = client.post("/extract-fhir", files=files)
+    response = client.post(
+        "/extract-fhir",
+        files=files,
+        headers={"Authorization": f"Bearer {auth_token}"}
+    )
     assert response.status_code == 400
     assert "empty" in response.json()["detail"].lower()
 
@@ -53,7 +126,7 @@ def test_extract_fhir_empty_file():
     "OPENAI_API_KEY" not in __import__("os").environ,
     reason="OpenAI API key not set - skipping integration test"
 )
-def test_extract_fhir_with_sample_text():
+def test_extract_fhir_with_sample_text(auth_token):
     """Test extract-fhir endpoint with sample clinical text (requires OPENAI_API_KEY)"""
     # Sample clinical document (non-PHI example)
     sample_text = """
@@ -85,7 +158,11 @@ def test_extract_fhir_with_sample_text():
     """
     
     files = {"file": ("clinical_note.txt", BytesIO(sample_text.encode()), "text/plain")}
-    response = client.post("/extract-fhir", files=files)
+    response = client.post(
+        "/extract-fhir",
+        files=files,
+        headers={"Authorization": f"Bearer {auth_token}"}
+    )
     
     # Should succeed if API key is valid
     assert response.status_code == 200
@@ -106,7 +183,7 @@ def test_extract_fhir_with_sample_text():
     "OPENAI_API_KEY" not in __import__("os").environ,
     reason="OpenAI API key not set - skipping integration test"
 )
-def test_fhir_bundle_validation():
+def test_fhir_bundle_validation(auth_token):
     """Test that extracted FHIR data contains required fields"""
     sample_text = """
     Patient Information
@@ -124,7 +201,11 @@ def test_fhir_bundle_validation():
     """
     
     files = {"file": ("patient_info.txt", BytesIO(sample_text.encode()), "text/plain")}
-    response = client.post("/extract-fhir", files=files)
+    response = client.post(
+        "/extract-fhir",
+        files=files,
+        headers={"Authorization": f"Bearer {auth_token}"}
+    )
     
     if response.status_code == 200:
         data = response.json()
