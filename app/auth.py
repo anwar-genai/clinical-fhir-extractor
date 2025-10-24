@@ -18,8 +18,8 @@ from .schemas import TokenData
 
 logger = logging.getLogger(__name__)
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing context - using pbkdf2_sha256 as fallback
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 
 # HTTP Bearer token scheme
 security = HTTPBearer()
@@ -31,13 +31,17 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password"""
-    return pwd_context.hash(password)
+    """Hash a password using pbkdf2_sha256"""
+    # Use pbkdf2_sha256 which doesn't have the 72-byte limit
+    return pwd_context.hash(password, scheme="pbkdf2_sha256")
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
     """Create JWT access token"""
     to_encode = data.copy()
+    # Convert user_id to string for JWT compatibility
+    if 'sub' in to_encode and isinstance(to_encode['sub'], int):
+        to_encode['sub'] = str(to_encode['sub'])
     
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -56,6 +60,10 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
 def create_refresh_token(data: Dict[str, Any]) -> str:
     """Create JWT refresh token"""
     to_encode = data.copy()
+    # Convert user_id to string for JWT compatibility
+    if 'sub' in to_encode and isinstance(to_encode['sub'], int):
+        to_encode['sub'] = str(to_encode['sub'])
+    
     expire = datetime.utcnow() + timedelta(days=settings.jwt_refresh_token_expire_days)
     
     to_encode.update({
@@ -82,7 +90,7 @@ def decode_token(token: str) -> TokenData:
                 headers={"WWW-Authenticate": "Bearer"},
             )
         
-        return TokenData(user_id=user_id, username=username, role=role)
+        return TokenData(user_id=int(user_id), username=username, role=role)
     
     except JWTError as e:
         logger.error(f"JWT decode error: {e}")

@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     
     # Security
     password_min_length: int = 8
+    password_max_length: int = 72  # bcrypt limit
     api_key_length: int = 32
     
     # Rate Limiting
@@ -34,7 +35,7 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 10
     
     # CORS
-    cors_origins: list = ["*"]
+    cors_origins: list = ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"]
     
     # LangChain
     chunk_size: int = 1000
@@ -45,6 +46,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "ignore"
 
 
 # Global settings instance
