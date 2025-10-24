@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useFHIRExtraction } from '../hooks/useFHIR'
-import { useExtractionsList, fetchExtractionById } from '../hooks/useExtractions'
+import { useExtractionsList, fetchExtractionById, useDeleteExtraction } from '../hooks/useExtractions'
 import type { FHIRBundle } from '../types'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card'
@@ -16,6 +16,7 @@ export default function Dashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { extractFHIR, isLoading, data: extractionResponse } = useFHIRExtraction()
   const { data: history, isLoading: isHistoryLoading, refetch: refetchHistory } = useExtractionsList()
+  const deleteMutation = useDeleteExtraction()
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
@@ -72,7 +73,7 @@ export default function Dashboard() {
 
   const downloadJSON = () => {
     if (selectedBundle) {
-      const blob = new Blob([JSON.stringify(fhirData, null, 2)], { type: 'application/json' })
+      const blob = new Blob([JSON.stringify(selectedBundle, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -259,6 +260,26 @@ export default function Dashboard() {
                           }}
                         >
                           Load
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            const ok = window.confirm('Delete this extraction? This cannot be undone.')
+                            if (!ok) return
+                            try {
+                              await deleteMutation.mutateAsync(item.id)
+                              // If we just deleted the currently viewed extraction, clear it
+                              // We can't know id from selectedBundle here; just clear on delete
+                              setSelectedBundle(null)
+                              refetchHistory()
+                              toast.success('Deleted')
+                            } catch (e) {
+                              toast.error('Failed to delete')
+                            }
+                          }}
+                        >
+                          Delete
                         </Button>
                       </div>
                     </div>
