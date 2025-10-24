@@ -1,5 +1,7 @@
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useFHIRExtraction } from '../hooks/useFHIR'
+import { useExtractionsList, fetchExtractionById } from '../hooks/useExtractions'
+import type { FHIRBundle } from '../types'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card'
 import { Upload, FileText, Download, Copy, CheckCircle, AlertCircle } from 'lucide-react'
@@ -10,8 +12,10 @@ import toast from 'react-hot-toast'
 export default function Dashboard() {
   const [dragActive, setDragActive] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [selectedBundle, setSelectedBundle] = useState<FHIRBundle | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { extractFHIR, isLoading, data: fhirData } = useFHIRExtraction()
+  const { extractFHIR, isLoading, data: extractionResponse } = useFHIRExtraction()
+  const { data: history, isLoading: isHistoryLoading, refetch: refetchHistory } = useExtractionsList()
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
@@ -54,9 +58,9 @@ export default function Dashboard() {
   }
 
   const copyToClipboard = async () => {
-    if (fhirData) {
+    if (selectedBundle) {
       try {
-        await navigator.clipboard.writeText(JSON.stringify(fhirData, null, 2))
+        await navigator.clipboard.writeText(JSON.stringify(selectedBundle, null, 2))
         setCopied(true)
         toast.success('Copied to clipboard!')
         setTimeout(() => setCopied(false), 2000)
@@ -67,7 +71,7 @@ export default function Dashboard() {
   }
 
   const downloadJSON = () => {
-    if (fhirData) {
+    if (selectedBundle) {
       const blob = new Blob([JSON.stringify(fhirData, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -80,6 +84,32 @@ export default function Dashboard() {
       toast.success('Download started!')
     }
   }
+
+  // When a new extraction completes, show it and refresh history
+  useEffect(() => {
+    if (extractionResponse?.bundle) {
+      setSelectedBundle(extractionResponse.bundle)
+      refetchHistory()
+    }
+  }, [extractionResponse, refetchHistory])
+
+  // On first load, fetch the most recent extraction and display it
+  useEffect(() => {
+    const loadMostRecent = async () => {
+      if (history && history.length > 0) {
+        try {
+          const latest = await fetchExtractionById(history[0].id)
+          const parsed: FHIRBundle = JSON.parse(latest.result_json)
+          setSelectedBundle(parsed)
+        } catch (e) {
+          // ignore parse/load errors
+        }
+      }
+    }
+    if (history && !isHistoryLoading) {
+      loadMostRecent()
+    }
+  }, [history, isHistoryLoading])
 
   return (
     <div className="p-6">
@@ -145,7 +175,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Results Section */}
-          {fhirData && (
+          {selectedBundle && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -153,7 +183,7 @@ export default function Dashboard() {
                   Extraction Results
                 </CardTitle>
                 <CardDescription>
-                  FHIR Bundle with {fhirData.entry?.length || 0} resources extracted
+                  FHIR Bundle with {selectedBundle.entry?.length || 0} resources extracted
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -189,12 +219,56 @@ export default function Dashboard() {
                     showLineNumbers
                     wrapLines
                   >
-                    {JSON.stringify(fhirData, null, 2)}
+                    {JSON.stringify(selectedBundle, null, 2)}
                   </SyntaxHighlighter>
                 </div>
               </CardContent>
             </Card>
           )}
+
+          {/* History Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Extraction History</CardTitle>
+              <CardDescription>Your recent extractions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isHistoryLoading ? (
+                <div className="text-sm text-gray-500">Loading history…</div>
+              ) : (history && history.length > 0 ? (
+                <div className="space-y-2">
+                  {history.map(item => (
+                    <div key={item.id} className="flex items-center justify-between border rounded px-3 py-2">
+                      <div>
+                        <div className="text-sm font-medium">{item.filename}</div>
+                        <div className="text-xs text-gray-500">{new Date(item.created_at).toLocaleString()}</div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            try {
+                              const rec = await fetchExtractionById(item.id)
+                              const parsed: FHIRBundle = JSON.parse(rec.result_json)
+                              setSelectedBundle(parsed)
+                              toast.success('Loaded extraction')
+                            } catch (e) {
+                              toast.error('Failed to load extraction')
+                            }
+                          }}
+                        >
+                          Load
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500">No extractions yet. Upload a document to get started.</div>
+              ))}
+            </CardContent>
+          </Card>
 
           {/* Instructions */}
           <Card>

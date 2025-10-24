@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { api } from '../lib/api'
-import { FHIRBundle } from '../types'
+import { FHIRBundle, FHIRExtractionResponse } from '../types'
 import toast from 'react-hot-toast'
 
 export function useFHIRExtraction() {
@@ -9,7 +9,7 @@ export function useFHIRExtraction() {
       const formData = new FormData()
       formData.append('file', file)
       
-      const response = await api.post<FHIRBundle>('/extract-fhir', formData, {
+      const response = await api.post<FHIRExtractionResponse>('/extract-fhir', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

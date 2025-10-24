@@ -71,3 +71,24 @@ export interface FHIRBundle {
     }
   }>
 }
+
+export interface ExtractionListItem {
+  id: number
+  filename: string
+  created_at: string
+}
+
+export interface ExtractionResponse {
+  id: number
+  user_id: number
+  filename: string
+  content_type?: string
+  file_size?: number
+  result_json: string
+  created_at: string
+}
+
+export interface FHIRExtractionResponse {
+  extraction_id: number
+  bundle: FHIRBundle
+}

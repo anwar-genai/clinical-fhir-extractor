@@ -10,6 +10,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.orm import Session
+import json
 
 from .extractor import FHIRExtractor
 from .config import settings
@@ -18,6 +19,7 @@ from .auth import get_current_active_user
 from .models import User
 from .audit import log_audit_event, get_client_ip, get_user_agent
 from .routes import auth
+from .routes import extractions as extractions_routes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -46,8 +48,9 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# Include authentication routes
+# Include routes
 app.include_router(auth.router)
+app.include_router(extractions_routes.router)
 
 # Initialize database on startup
 @app.on_event("startup")
@@ -168,6 +171,19 @@ async def extract_fhir(
         # Validate the extracted data
         extractor_instance.validate_fhir_bundle(fhir_data)
         
+        # Persist extraction
+        from .models import Extraction
+        extraction = Extraction(
+            user_id=current_user.id,
+            filename=file.filename,
+            content_type=file.content_type,
+            file_size=len(file_content),
+            result_json=json.dumps(fhir_data),
+        )
+        db.add(extraction)
+        db.commit()
+        db.refresh(extraction)
+
         # Log successful extraction
         log_audit_event(
             db, "extract_fhir", "success",
@@ -177,12 +193,15 @@ async def extract_fhir(
             user_agent=get_user_agent(request),
             details={
                 "file_size": len(file_content),
-                "resources_extracted": len(fhir_data.get("entry", []))
+                "resources_extracted": len(fhir_data.get("entry", [])),
+                "extraction_id": extraction.id,
             }
         )
         
         logger.info(f"User {current_user.username} - Successfully extracted FHIR data from {file.filename}")
-        return JSONResponse(content=fhir_data)
+        # Return both bundle and extraction id
+        response_payload = {"extraction_id": extraction.id, "bundle": fhir_data}
+        return JSONResponse(content=response_payload)
     
     except ValueError as e:
         logger.error(f"Validation error: {e}")

@@ -107,3 +107,31 @@ class AuditLogResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+# Extraction Schemas
+class ExtractionCreate(BaseModel):
+    filename: str
+    content_type: Optional[str] = None
+    file_size: Optional[int] = None
+    result_json: str  # JSON string
+
+
+class ExtractionResponse(BaseModel):
+    id: int
+    user_id: int
+    filename: str
+    content_type: Optional[str] = None
+    file_size: Optional[int] = None
+    result_json: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ExtractionListItem(BaseModel):
+    id: int
+    filename: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+

@@ -70,3 +70,18 @@ class AuditLog(Base):
     def __repr__(self):
         return f"<AuditLog {self.action} by user_id={self.user_id} at {self.created_at}>"
 
+
+class Extraction(Base):
+    """Persisted FHIR extraction results per user"""
+    __tablename__ = "extractions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False)  # References users.id
+    filename = Column(String, nullable=False)
+    content_type = Column(String, nullable=True)
+    file_size = Column(Integer, nullable=True)
+    result_json = Column(Text, nullable=False)  # JSON string of the FHIR Bundle
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    def __repr__(self):
+        return f"<Extraction id={self.id} user_id={self.user_id} filename={self.filename}>"
