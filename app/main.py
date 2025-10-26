@@ -84,6 +84,11 @@ async def root():
         "message": "Clinical FHIR Extractor API",
         "version": "0.2.0",
         "authentication": "required",
+        "features": {
+            "text_extraction": "PDF and text files",
+            "ocr_extraction": "Scanned PDFs and images (PNG, JPG, TIFF, etc.)",
+            "fhir_compliance": "FHIR R4-compliant output"
+        },
         "endpoints": {
             "/auth/register": "POST - Register new user",
             "/auth/login": "POST - Login and get JWT token",
@@ -119,7 +124,9 @@ async def extract_fhir(
     **Authentication required** - Include JWT token or API key in Authorization header
     
     Args:
-        file: Uploaded PDF or text file containing clinical data
+        file: Uploaded PDF, text file, or image file containing clinical data
+               Supported formats: PDF (.pdf), Text (.txt), Images (.png, .jpg, .jpeg, .tiff, .tif, .bmp, .gif)
+               Scanned PDFs and images are processed using OCR
         
     Returns:
         FHIR Bundle with Patient, Observation, Condition, and MedicationStatement resources
@@ -133,8 +140,27 @@ async def extract_fhir(
     if not file.filename:
         raise HTTPException(status_code=400, detail="Filename is required")
     
-    allowed_extensions = [".pdf", ".txt", ".text"]
+    # Get supported formats from OCR service if available
+    from .extractor import FHIRExtractor
+    extractor_instance = get_extractor()
+    
+    # Define supported formats
+    image_formats = ['.png', '.jpg', '.jpeg', '.tiff', '.tif', '.bmp', '.gif']
+    pdf_formats = ['.pdf']
+    text_formats = ['.txt', '.text']
+    allowed_extensions = pdf_formats + text_formats
+    
+    # Add image formats if OCR is available
+    if extractor_instance.ocr_service:
+        allowed_extensions.extend(image_formats)
+        logger.info(f"OCR service available - image formats added. Allowed: {allowed_extensions}")
+    else:
+        logger.warning("OCR service not available - only PDF and text files allowed")
+        logger.warning("Image files will be rejected. Check Tesseract installation and PATH.")
+    
     file_ext = file.filename.lower().split(".")[-1]
+    logger.info(f"File validation - filename: {file.filename}, extension: {file_ext}, content_type: {file.content_type}")
+    
     if f".{file_ext}" not in allowed_extensions:
         log_audit_event(
             db, "extract_fhir", "failure",

@@ -4,7 +4,7 @@ import { useExtractionsList, fetchExtractionById, useDeleteExtraction } from '..
 import type { FHIRBundle } from '../types'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card'
-import { Upload, FileText, Download, Copy, CheckCircle, AlertCircle } from 'lucide-react'
+import { Upload, FileText, Download, Copy, CheckCircle } from 'lucide-react'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import toast from 'react-hot-toast'
@@ -39,8 +39,27 @@ export default function Dashboard() {
   }
 
   const handleFile = (file: File) => {
-    if (!file.type.includes('pdf') && !file.type.includes('text')) {
-      toast.error('Please upload a PDF or text file')
+    // Check file type - allow PDF, text, and image files
+    const allowedTypes = ['pdf', 'text', 'image']
+    const fileType = file.type.toLowerCase()
+    const fileName = file.name.toLowerCase()
+    
+    // Check MIME type first, then file extension as fallback
+    const isAllowedByMime = allowedTypes.some(type => fileType.includes(type))
+    const isAllowedByExtension = fileName.endsWith('.pdf') || 
+                                 fileName.endsWith('.txt') || 
+                                 fileName.endsWith('.png') || 
+                                 fileName.endsWith('.jpg') || 
+                                 fileName.endsWith('.jpeg') || 
+                                 fileName.endsWith('.tiff') || 
+                                 fileName.endsWith('.tif') || 
+                                 fileName.endsWith('.bmp') || 
+                                 fileName.endsWith('.gif')
+    
+    const isAllowed = isAllowedByMime || isAllowedByExtension
+    
+    if (!isAllowed) {
+      toast.error('Please upload a PDF, text, or image file (PNG, JPG, TIFF, etc.)')
       return
     }
 
@@ -131,7 +150,7 @@ export default function Dashboard() {
                 Upload Clinical Document
               </CardTitle>
               <CardDescription>
-                Drag and drop a PDF or text file, or click to browse
+                Drag and drop a PDF, text, or image file, or click to browse
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -152,7 +171,7 @@ export default function Dashboard() {
                     {dragActive ? 'Drop your file here' : 'Upload a clinical document'}
                   </p>
                   <p className="text-sm text-gray-500">
-                    PDF or text files up to 10MB
+                    PDF, text, or image files (PNG, JPG, TIFF, etc.) up to 10MB
                   </p>
                 </div>
                 <div className="mt-6">
@@ -166,7 +185,7 @@ export default function Dashboard() {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,.txt"
+                    accept=".pdf,.txt,.png,.jpg,.jpeg,.tiff,.tif,.bmp,.gif"
                     onChange={handleFileInput}
                     className="hidden"
                   />

@@ -1,8 +1,8 @@
 # Clinical FHIR Extractor
 
-A secure backend service that extracts structured medical data from PDF or text clinical documents and outputs FHIR R4-compliant JSON using LangChain, FAISS, and OpenAI.
+A secure backend service that extracts structured medical data from PDF, text, and image clinical documents and outputs FHIR R4-compliant JSON using LangChain, FAISS, OpenAI, and OCR.
 
-**Version 0.2.0** - Now with authentication, authorization, and audit logging!
+**Version 0.2.0** - Now with authentication, authorization, audit logging, and OCR support!
 
 ## ✨ What's New in v0.2.0
 
@@ -23,6 +23,13 @@ A secure backend service that extracts structured medical data from PDF or text 
 - User activity tracking
 - Admin dashboard endpoints
 
+🔍 **OCR Support** (NEW!)
+- Scanned PDF processing with Tesseract OCR
+- Image file support (PNG, JPG, TIFF, BMP, GIF)
+- Automatic scanned vs text-based PDF detection
+- Image preprocessing for better OCR accuracy
+- Support for complex medical document layouts
+
 📖 **[Full Authentication Documentation →](AUTHENTICATION.md)**
 
 ## 🏗️ Architecture
@@ -33,19 +40,28 @@ This application uses:
 - **FAISS** for vector storage and semantic search
 - **OpenAI GPT-4** for intelligent medical data extraction
 - **PyPDF** for PDF document parsing
+- **Tesseract OCR** for scanned document and image processing
+- **PIL/Pillow** for image preprocessing
+- **PyMuPDF** for advanced PDF handling
 - **SQLAlchemy** for database management
 - **JWT** for secure authentication
 
 ### Workflow
 
-1. **Upload**: Client uploads a PDF or text clinical document
-2. **Load & Chunk**: Document is loaded and split into manageable chunks
-3. **Embed**: Chunks are embedded using OpenAI embeddings
-4. **Store**: Embeddings are stored in FAISS vector database
-5. **Retrieve**: Relevant chunks are retrieved based on semantic search
-6. **Extract**: OpenAI LLM extracts structured FHIR resources
-7. **Validate**: Output is validated against FHIR bundle structure
-8. **Return**: FHIR-compliant JSON is returned to client
+1. **Upload**: Client uploads a PDF, text, or image clinical document
+2. **Detect**: System automatically detects file type and processing method
+3. **Process**: 
+   - Text-based PDFs: Direct text extraction
+   - Scanned PDFs: OCR processing with image preprocessing
+   - Images: OCR processing with enhancement
+   - Text files: Direct processing
+4. **Load & Chunk**: Document is loaded and split into manageable chunks
+5. **Embed**: Chunks are embedded using OpenAI embeddings
+6. **Store**: Embeddings are stored in FAISS vector database
+7. **Retrieve**: Relevant chunks are retrieved based on semantic search
+8. **Extract**: OpenAI LLM extracts structured FHIR resources
+9. **Validate**: Output is validated against FHIR bundle structure
+10. **Return**: FHIR-compliant JSON is returned to client
 
 ## 📁 Project Structure
 

@@ -1,10 +1,10 @@
-"""Core extraction logic using LangChain + FAISS + OpenAI"""
+"""Core extraction logic using LangChain + FAISS + OpenAI + OCR"""
 
 import json
 import os
 import tempfile
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List
 import logging
 
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
@@ -13,6 +13,9 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
+from langchain.schema import Document
+
+from .ocr_service import OCRService
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,11 +24,12 @@ logger = logging.getLogger(__name__)
 class FHIRExtractor:
     """Extract FHIR-compliant medical data from clinical documents"""
     
-    def __init__(self, openai_api_key: str = None):
+    def __init__(self, openai_api_key: str = None, enable_ocr: bool = True):
         """Initialize the FHIR extractor with OpenAI credentials
         
         Args:
             openai_api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
+            enable_ocr: Whether to enable OCR for images and scanned PDFs
         """
         self.api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
@@ -39,17 +43,27 @@ class FHIRExtractor:
             openai_api_key=self.api_key
         )
         
+        # Initialize OCR service if enabled
+        self.ocr_service = None
+        if enable_ocr:
+            try:
+                self.ocr_service = OCRService()
+                logger.info("OCR service initialized successfully")
+            except Exception as e:
+                logger.warning(f"OCR service initialization failed: {e}. OCR features disabled.")
+                self.ocr_service = None
+        
         # Load prompt template
         prompt_path = Path(__file__).parent / "prompts" / "fhir_prompt.txt"
         with open(prompt_path, "r", encoding="utf-8") as f:
             self.prompt_template = f.read()
     
-    def load_document(self, file_path: str, file_type: str = "pdf") -> list:
+    def load_document(self, file_path: str, file_type: str = "pdf") -> List[Document]:
         """Load and chunk a document
         
         Args:
             file_path: Path to the document file
-            file_type: Type of file ('pdf' or 'text')
+            file_type: Type of file ('pdf', 'text', 'image', 'scanned_pdf')
             
         Returns:
             List of document chunks
@@ -59,12 +73,24 @@ class FHIRExtractor:
         # Load document based on type
         if file_type.lower() == "pdf":
             loader = PyPDFLoader(file_path)
+            documents = loader.load()
         elif file_type.lower() in ["txt", "text"]:
             loader = TextLoader(file_path, encoding="utf-8")
+            documents = loader.load()
+        elif file_type.lower() == "image":
+            if not self.ocr_service:
+                raise ValueError("OCR service not available. Cannot process image files.")
+            # Extract text from image using OCR
+            text = self.ocr_service.extract_text_from_image(file_path)
+            documents = [Document(page_content=text, metadata={"source": file_path})]
+        elif file_type.lower() == "scanned_pdf":
+            if not self.ocr_service:
+                raise ValueError("OCR service not available. Cannot process scanned PDFs.")
+            # Extract text from scanned PDF using OCR
+            text = self.ocr_service.extract_text_from_scanned_pdf(file_path)
+            documents = [Document(page_content=text, metadata={"source": file_path})]
         else:
             raise ValueError(f"Unsupported file type: {file_type}")
-        
-        documents = loader.load()
         
         # Split into chunks
         text_splitter = RecursiveCharacterTextSplitter(
@@ -102,12 +128,38 @@ class FHIRExtractor:
         """
         # Determine file type from extension
         file_ext = Path(filename).suffix.lower()
-        if file_ext == ".pdf":
-            file_type = "pdf"
-        elif file_ext in [".txt", ".text"]:
+        
+        # Get supported formats
+        image_formats = ['.png', '.jpg', '.jpeg', '.tiff', '.tif', '.bmp', '.gif']
+        pdf_formats = ['.pdf']
+        text_formats = ['.txt', '.text']
+        
+        # Determine file type and processing method
+        if file_ext in pdf_formats:
+            # Check if PDF is scanned or text-based
+            if self.ocr_service:
+                # Save PDF temporarily to check if it's scanned
+                with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
+                    tmp_file.write(file_content)
+                    tmp_path = tmp_file.name
+                
+                try:
+                    is_scanned = self.ocr_service.is_scanned_pdf(tmp_path)
+                    file_type = "scanned_pdf" if is_scanned else "pdf"
+                finally:
+                    if os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
+            else:
+                file_type = "pdf"
+        elif file_ext in image_formats:
+            if not self.ocr_service:
+                raise ValueError(f"OCR service not available. Cannot process image files: {file_ext}")
+            file_type = "image"
+        elif file_ext in text_formats:
             file_type = "text"
         else:
-            raise ValueError(f"Unsupported file extension: {file_ext}. Use .pdf or .txt")
+            supported_formats = pdf_formats + image_formats + text_formats
+            raise ValueError(f"Unsupported file extension: {file_ext}. Supported formats: {supported_formats}")
         
         # Save uploaded file to temporary location
         with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp_file:
