@@ -29,8 +29,10 @@ A secure backend service that extracts structured medical data from PDF, text, a
 - Automatic scanned vs text-based PDF detection
 - Image preprocessing for better OCR accuracy
 - Support for complex medical document layouts
+- Comprehensive OCR accuracy testing framework
 
-📖 **[Full Authentication Documentation →](AUTHENTICATION.md)**
+📖 **[Full Authentication Documentation →](AUTHENTICATION.md)**  
+📊 **[OCR Testing Framework →](OCR_TESTING_README.md)**
 
 ## 🏗️ Architecture
 
