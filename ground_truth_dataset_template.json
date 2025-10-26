@@ -1,0 +1,66 @@
+{
+  "dataset_name": "Clinical Document OCR Ground Truth",
+  "version": "1.0",
+  "description": "Ground truth dataset for testing OCR accuracy on clinical documents",
+  "test_cases": [
+    {
+      "id": "case_001",
+      "file_path": "test_documents/patient_record_001.png",
+      "expected_text": "Patient: John R. Doe\nDOB: 01/15/1980\nDiagnosis: Hypertension\nBP: 140/90 mmHg",
+      "category": "patient_record",
+      "difficulty": "easy",
+      "notes": "Clear printed text, good contrast"
+    },
+    {
+      "id": "case_002", 
+      "file_path": "test_documents/medication_list_001.jpg",
+      "expected_text": "Current Medications:\n1. Lisinopril 10mg daily\n2. Metformin 500mg twice daily\n3. Atorvastatin 20mg at bedtime",
+      "category": "medication_list",
+      "difficulty": "medium",
+      "notes": "Handwritten additions, some blur"
+    },
+    {
+      "id": "case_003",
+      "file_path": "test_documents/lab_results_001.pdf",
+      "expected_text": "Lab Results:\nGlucose: 120 mg/dL\nCholesterol: 200 mg/dL\nHDL: 45 mg/dL\nLDL: 130 mg/dL",
+      "category": "lab_results", 
+      "difficulty": "medium",
+      "notes": "Scanned PDF, table format"
+    },
+    {
+      "id": "case_004",
+      "file_path": "test_documents/discharge_summary_001.tiff",
+      "expected_text": "Discharge Summary:\nPatient: Mary Elizabeth Smith\nAdmission Date: 12/01/2024\nDischarge Date: 12/03/2024\nPrimary Diagnosis: Pneumonia\nSecondary Diagnosis: Hypertension",
+      "category": "discharge_summary",
+      "difficulty": "hard",
+      "notes": "Complex layout, multiple sections"
+    },
+    {
+      "id": "case_005",
+      "file_path": "test_documents/vital_signs_001.png",
+      "expected_text": "Vital Signs:\nTemperature: 98.6°F\nBlood Pressure: 120/80 mmHg\nHeart Rate: 72 bpm\nRespiratory Rate: 16/min\nOxygen Saturation: 98%",
+      "category": "vital_signs",
+      "difficulty": "easy",
+      "notes": "Structured format, clear text"
+    }
+  ],
+  "categories": {
+    "patient_record": "Basic patient information and demographics",
+    "medication_list": "Current medications with dosages",
+    "lab_results": "Laboratory test results and values",
+    "discharge_summary": "Hospital discharge documentation",
+    "vital_signs": "Patient vital signs and measurements"
+  },
+  "difficulty_levels": {
+    "easy": "Clear printed text, good contrast, simple layout",
+    "medium": "Some handwriting, moderate contrast, structured layout", 
+    "hard": "Complex layout, poor contrast, handwritten text, multiple sections"
+  },
+  "usage_instructions": [
+    "1. Place the referenced files in the test_documents folder",
+    "2. Run the accuracy test with 'dataset' approach",
+    "3. Compare extracted text with expected_text",
+    "4. Calculate accuracy metrics automatically",
+    "5. Review results and identify improvement areas"
+  ]
+}
