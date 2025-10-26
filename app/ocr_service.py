@@ -68,18 +68,69 @@ class OCRService:
         if image.mode != 'L':
             image = image.convert('L')
         
-        # Enhance contrast
+        # Resize image if it's too small (OCR works better on larger images)
+        width, height = image.size
+        if width < 300 or height < 300:
+            # Calculate scale factor to make image at least 300px in smallest dimension
+            scale_factor = max(300 / width, 300 / height)
+            new_width = int(width * scale_factor)
+            new_height = int(height * scale_factor)
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            logger.info(f"Resized image from {width}x{height} to {new_width}x{new_height}")
+        
+        # Enhance contrast more aggressively
         enhancer = ImageEnhance.Contrast(image)
-        image = enhancer.enhance(2.0)
+        image = enhancer.enhance(2.5)  # Increased from 2.0
         
-        # Enhance sharpness
+        # Enhance brightness slightly
+        enhancer = ImageEnhance.Brightness(image)
+        image = enhancer.enhance(1.1)
+        
+        # Enhance sharpness more aggressively
         enhancer = ImageEnhance.Sharpness(image)
-        image = enhancer.enhance(2.0)
+        image = enhancer.enhance(2.5)  # Increased from 2.0
         
-        # Apply slight blur to reduce noise
+        # Apply Gaussian blur to reduce noise (instead of median filter)
+        image = image.filter(ImageFilter.GaussianBlur(radius=0.5))
+        
+        # Apply additional noise reduction
         image = image.filter(ImageFilter.MedianFilter(size=3))
         
         return image
+    
+    def extract_text_with_multiple_configs(self, image: Image.Image) -> str:
+        """Try multiple OCR configurations and return the best result
+        
+        Args:
+            image: Preprocessed PIL Image
+            
+        Returns:
+            Best extracted text string
+        """
+        configs = [
+            '--psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,-/:() ',
+            '--psm 8 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,-/:() ',  # Single word
+            '--psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,-/:() ',  # Single text line
+            '--psm 6',  # Default without whitelist
+        ]
+        
+        results = []
+        for config in configs:
+            try:
+                text = pytesseract.image_to_string(image, lang='eng', config=config).strip()
+                if text:
+                    results.append(text)
+                    logger.debug(f"OCR config '{config}' produced: {text[:50]}...")
+            except Exception as e:
+                logger.debug(f"OCR config '{config}' failed: {e}")
+        
+        if not results:
+            return ""
+        
+        # Return the result with the most characters (usually most complete)
+        best_result = max(results, key=len)
+        logger.info(f"Selected best OCR result: {best_result[:100]}...")
+        return best_result
     
     def extract_text_from_image(self, image_path: str, preprocess: bool = True) -> str:
         """Extract text from image file using OCR
@@ -99,12 +150,8 @@ class OCRService:
             if preprocess:
                 image = self.preprocess_image(image)
             
-            # Extract text using Tesseract
-            text = pytesseract.image_to_string(
-                image,
-                lang='eng',  # English language
-                config='--psm 6'  # Assume uniform block of text
-            )
+            # Extract text using multiple OCR configurations for better accuracy
+            text = self.extract_text_with_multiple_configs(image)
             
             logger.info(f"OCR extracted {len(text)} characters from {image_path}")
             return text.strip()
@@ -131,12 +178,8 @@ class OCRService:
             if preprocess:
                 image = self.preprocess_image(image)
             
-            # Extract text using Tesseract
-            text = pytesseract.image_to_string(
-                image,
-                lang='eng',
-                config='--psm 6'
-            )
+            # Extract text using multiple OCR configurations for better accuracy
+            text = self.extract_text_with_multiple_configs(image)
             
             logger.info(f"OCR extracted {len(text)} characters from image bytes")
             return text.strip()
